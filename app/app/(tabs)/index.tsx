@@ -1,75 +1,115 @@
-import { Link } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Link, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ScrapCard } from '../../components/ScrapCard';
+import { useAuth } from '../../lib/auth-context';
+import { listGoals } from '../../lib/goals-api';
 import { colors, radii, spacing, type as typeTokens } from '../../lib/theme';
-import { useScraps } from '../../lib/scraps-context';
+import type { LearningGoal } from '../../lib/types';
 
 export default function HomeScreen() {
-  const { scraps, loaded } = useScraps();
-  const openScraps = scraps.filter((s) => s.status !== 'ready');
+  const { signOut } = useAuth();
+  const [goals, setGoals] = useState<LearningGoal[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    listGoals()
+      .then(setGoals)
+      .finally(() => setLoading(false));
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.screen}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.header}>
         <Text style={styles.wordmark}>Paly</Text>
+        <Pressable onPress={signOut}>
+          <Text style={styles.signOut}>Sign out</Text>
+        </Pressable>
+      </View>
 
-        <View style={styles.buddy}>
-          <Image
-            source={require('../../assets/mascot.png')}
-            style={styles.mascot}
-            accessibilityLabel="Paly, a soft cloud study buddy"
-          />
-          <Text style={styles.invite}>Got something confusing? Drop it here.</Text>
-        </View>
-
-        <Link href="/new-scrap" asChild>
-          <Pressable style={styles.capture} accessibilityRole="button" accessibilityLabel="Capture a study scrap">
-            <Text style={styles.captureIcon}>📷</Text>
-            <Text style={styles.captureText}>Photo, paste, or type a question…</Text>
-          </Pressable>
-        </Link>
-
-        <Text style={styles.sectionLabel}>Open scraps</Text>
-        <View style={{ gap: spacing.md }}>
-          {loaded && openScraps.length === 0 ? (
-            <Text style={styles.empty}>Nothing open right now — drop a scrap above.</Text>
+      <FlatList
+        data={goals}
+        keyExtractor={(g) => g.id}
+        contentContainerStyle={styles.list}
+        refreshing={loading}
+        onRefresh={load}
+        ListHeaderComponent={
+          <Link href="/new-goal" asChild>
+            <Pressable style={styles.capture}>
+              <Text style={styles.captureIcon}>+</Text>
+              <Text style={styles.captureText}>Start a new goal — Exam or Explore</Text>
+            </Pressable>
+          </Link>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.lavenderDeep} />
           ) : (
-            openScraps.map((scrap) => <ScrapCard key={scrap.id} scrap={scrap} />)
-          )}
-        </View>
-      </ScrollView>
+            <Text style={styles.empty}>No goals yet. Start one above to capture your first source.</Text>
+          )
+        }
+        renderItem={({ item }) => (
+          <Link href={{ pathname: '/goal/[id]', params: { id: item.id } }} asChild>
+            <Pressable style={[styles.goalCard, item.mode === 'exam' ? styles.examCard : styles.exploreCard]}>
+              <Text style={styles.goalTitle}>{item.title}</Text>
+              {item.subject ? <Text style={styles.goalSubject}>{item.subject}</Text> : null}
+              <View style={styles.pill}>
+                <Text style={styles.pillText}>{item.mode === 'exam' ? 'exam mode' : 'explore mode'}</Text>
+              </View>
+            </Pressable>
+          </Link>
+        )}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  screen: {
-    padding: spacing.xl,
-    paddingBottom: 120,
-    gap: spacing.lg,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
   },
-  wordmark: { ...typeTokens.wordmark, color: colors.ink, textAlign: 'center' },
-  buddy: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
-  mascot: { width: 148, height: 148, resizeMode: 'contain' },
-  invite: { ...typeTokens.invite, color: colors.muted, textAlign: 'center' },
+  wordmark: { ...typeTokens.wordmark, color: colors.ink },
+  signOut: { color: colors.muted, fontSize: 13 },
+  list: { padding: spacing.xl, paddingTop: spacing.md, gap: spacing.md },
   capture: {
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: colors.lavender,
     backgroundColor: '#fbf9ff',
     borderRadius: radii.xl,
-    paddingVertical: spacing.xxl,
+    paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  captureIcon: { fontSize: 28, marginBottom: spacing.sm, color: colors.captureIcon },
-  captureText: { color: colors.captureText, fontSize: 15 },
-  sectionLabel: { ...typeTokens.sectionLabel, color: colors.ink, marginTop: spacing.xs },
-  empty: { color: colors.muted, fontSize: 14 },
+  captureIcon: { fontSize: 28, color: colors.captureIcon, marginBottom: spacing.xs },
+  captureText: { color: colors.captureText, fontSize: 15, textAlign: 'center' },
+  empty: { color: colors.muted, textAlign: 'center', marginTop: spacing.xl },
+  goalCard: { padding: spacing.md + 2, borderRadius: radii.lg, gap: 4 },
+  examCard: { backgroundColor: colors.peach },
+  exploreCard: { backgroundColor: colors.mint },
+  goalTitle: { ...typeTokens.scrapTitle, color: colors.ink },
+  goalSubject: { color: colors.scrapPeachText, fontSize: 14 },
+  pill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    backgroundColor: colors.pillBg,
+    marginTop: spacing.xs,
+  },
+  pillText: { ...typeTokens.pill, color: colors.pillText },
 });

@@ -17,7 +17,8 @@ export default function BuddyScreen() {
           </Text>
         </View>
         <Text style={styles.note}>
-          Open a scrap from Home and tap it to start clarifying together.
+          The grounded Socratic tutor — text and push-to-talk, citing your own sources — is coming in
+          Milestone 3. For now, capture a goal from Home to build your first study set.
         </Text>
       </ScrollView>
     </SafeAreaView>

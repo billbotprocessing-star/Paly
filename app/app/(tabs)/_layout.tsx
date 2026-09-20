@@ -1,6 +1,7 @@
-import { Tabs } from 'expo-router';
-import { StyleSheet, Text } from 'react-native';
+import { Redirect, Tabs } from 'expo-router';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { useAuth } from '../../lib/auth-context';
 import { colors, radii } from '../../lib/theme';
 
 function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
@@ -10,6 +11,20 @@ function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
 }
 
 export default function TabsLayout() {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
+        <ActivityIndicator color={colors.lavenderDeep} />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <Redirect href="/sign-in" />;
+  }
+
   return (
     <Tabs
       screenOptions={{

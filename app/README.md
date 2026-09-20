@@ -1,18 +1,26 @@
 # Paly — app
 
-Expo (React Native) implementation of the Paly product loop: **capture → clarify → ship**.
+Expo (React Native) client for the Paly MVP (see `../docs/paly-mvp-spec.pdf`):
+capture → generate a study set → (recall, tutor, planning — upcoming milestones).
+
+Currently implements **Milestone 0 (Foundation)** and **Milestone 1
+(Capture, text-only)**: auth, goal setup (Exam/Explore), pasting text as a
+source, and AI-generated draft concepts/study items you review and publish.
 
 ## Structure
 
-- `app/(tabs)/index.tsx` — Home: mascot, capture zone, open scraps
-- `app/(tabs)/study.tsx` — Study: shipped study cards
-- `app/(tabs)/buddy.tsx` — Buddy: about Paly
-- `app/new-scrap.tsx` — capture form (type / paste / photo) → creates a scrap
-- `app/scrap/[id].tsx` — Clarify screen: chat with Paly on a scrap, then Ship
+- `app/sign-in.tsx` — email/password auth (Supabase)
+- `app/(tabs)/index.tsx` — Home: your goals, + New goal
+- `app/(tabs)/study.tsx` — Study: published items across goals
+- `app/(tabs)/buddy.tsx` — Buddy: about Paly (tutor lands in Milestone 3)
+- `app/new-goal.tsx` — goal setup: Exam or Explore, title, subject, cadence
+- `app/goal/[id].tsx` — capture (paste text) → generate → review/edit/publish
 - `lib/theme.ts` — design tokens ported from `../index.html`
-- `lib/types.ts` — `Scrap` model (`status: pale | clarifying | ready`)
-- `lib/scraps-context.tsx` — scrap state + `AsyncStorage` persistence
-- `lib/mock-clarify.ts` — canned Paly replies and study-card generation, stands in for a real model call
+- `lib/types.ts` — mirrors the Supabase schema (see `../supabase/`)
+- `lib/supabase.ts` — Supabase client (AsyncStorage-backed session)
+- `lib/auth-context.tsx` — session state, sign in/up/out
+- `lib/goals-api.ts` — goal/source/concept/study-item queries + text chunking
+  + calls the `generate-set` edge function
 
 ## Run it
 
@@ -21,8 +29,17 @@ npm install
 npm run web    # or: npm run ios / npm run android
 ```
 
+Needs `.env` (already committed — Supabase anon/publishable keys are safe
+to expose; RLS is the actual security boundary):
+
+```
+EXPO_PUBLIC_SUPABASE_URL=...
+EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
 ## Next
 
-- Swap `lib/mock-clarify.ts` for a real AI chat grounded on the scrap.
-- Real camera capture + OCR for the photo path (currently picks from the library).
-- Accounts/sync.
+- Milestone 2: active recall UI, memory-state scheduler, adaptive daily queue.
+- Milestone 3: swap the placeholder generator in `generate-set` for a real
+  n8n webhook; add the grounded Socratic tutor.
+- Photo/PDF capture (currently text-only per the spec's "first build decision").

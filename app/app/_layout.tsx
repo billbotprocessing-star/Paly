@@ -3,25 +3,20 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { colors } from '../lib/theme';
-import { ScrapsProvider } from '../lib/scraps-context';
+import { AuthProvider } from '../lib/auth-context';
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <ScrapsProvider>
+      <AuthProvider>
         <StatusBar style="dark" />
         <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="new-scrap"
-            options={{ presentation: 'modal', title: 'New scrap' }}
-          />
-          <Stack.Screen
-            name="scrap/[id]"
-            options={{ title: 'Clarify', headerBackTitle: 'Home' }}
-          />
+          <Stack.Screen name="new-goal" options={{ presentation: 'modal', title: 'New goal' }} />
+          <Stack.Screen name="goal/[id]" options={{ title: 'Goal', headerBackTitle: 'Home' }} />
         </Stack>
-      </ScrapsProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
