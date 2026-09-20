@@ -10,9 +10,11 @@
     "newArchEnabled": true,
     "plugins": ["expo-router"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.palebytes.paly"
     },
     "android": {
+      "package": "com.palebytes.paly",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
