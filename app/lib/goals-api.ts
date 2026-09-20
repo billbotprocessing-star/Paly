@@ -113,9 +113,11 @@ export async function captureTextSource(goalId: string, title: string, rawText: 
   return ingested;
 }
 
-export async function generateStudySet(goalId: string, sourceId: string) {
+export async function generateStudySet(sourceId: string) {
+  // The edge function derives the destination goal from the source itself
+  // rather than trusting a client-supplied goal_id.
   const { data, error } = await supabase.functions.invoke('generate-set', {
-    body: { goal_id: goalId, source_id: sourceId },
+    body: { source_id: sourceId },
   });
   if (error) throw error;
   return data as { job_id: string; concepts: ConceptRow[]; items: StudyItemRow[] };

@@ -1,6 +1,5 @@
--- missing covering indexes for FKs
-create index concept_sources_chunk_id_idx on concept_sources(chunk_id);
-create index item_concepts_concept_id_idx on item_concepts(concept_id);
+-- Covering indexes for concept_sources.chunk_id and item_concepts.concept_id
+-- are created in 20260920_m0_m1_core_schema.sql alongside their tables.
 
 -- re-create policies with (select auth.uid()) so it's evaluated once per query, not per row
 drop policy profiles_select_own on profiles;

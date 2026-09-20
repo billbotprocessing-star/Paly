@@ -76,7 +76,7 @@ export default function GoalDetailScreen() {
     setCapturing(true);
     try {
       const source = await captureTextSource(id, sourceTitle.trim() || 'Pasted text', sourceText.trim());
-      await generateStudySet(id, source.id);
+      await generateStudySet(source.id);
       setSourceTitle('');
       setSourceText('');
       await load();

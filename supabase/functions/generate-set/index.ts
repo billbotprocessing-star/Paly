@@ -13,8 +13,20 @@
 // touching the app or the schema.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+function jsonResponse(body: unknown, status: number) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
 interface RequestBody {
-  goal_id: string;
   source_id: string;
 }
 
@@ -62,13 +74,16 @@ function draftConceptFromChunk(chunk: ChunkRow) {
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'method_not_allowed' }), { status: 405 });
+    return jsonResponse({ error: 'method_not_allowed' }, 405);
   }
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'missing_authorization' }), { status: 401 });
+    return jsonResponse({ error: 'missing_authorization' }, 401);
   }
 
   const supabase = createClient(
@@ -79,7 +94,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
-    return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
+    return jsonResponse({ error: 'unauthorized' }, 401);
   }
   const userId = userData.user.id;
 
@@ -87,11 +102,24 @@ Deno.serve(async (req: Request) => {
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'invalid_json' }), { status: 400 });
+    return jsonResponse({ error: 'invalid_json' }, 400);
   }
-  if (!body.goal_id || !body.source_id) {
-    return new Response(JSON.stringify({ error: 'goal_id and source_id are required' }), { status: 400 });
+  if (!body.source_id) {
+    return jsonResponse({ error: 'source_id is required' }, 400);
   }
+
+  // Derive the destination goal from the source itself (RLS-checked below)
+  // rather than trusting the request body's goal_id, which a caller could
+  // set to any goal they own regardless of which goal the source belongs to.
+  const { data: source, error: sourceError } = await supabase
+    .from('sources')
+    .select('id, goal_id')
+    .eq('id', body.source_id)
+    .single();
+  if (sourceError || !source) {
+    return jsonResponse({ error: 'source_not_found' }, 404);
+  }
+  const goalId = source.goal_id as string;
 
   const idempotencyKey = `generate-set:${body.source_id}`;
 
@@ -113,7 +141,7 @@ Deno.serve(async (req: Request) => {
     .single();
 
   if (jobError || !job) {
-    return new Response(JSON.stringify({ error: jobError?.message ?? 'job_create_failed' }), { status: 500 });
+    return jsonResponse({ error: jobError?.message ?? 'job_create_failed' }, 500);
   }
 
   try {
@@ -130,7 +158,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // Retry-without-duplicates: clear any previously AI-generated draft
-    // concepts tied to this source's chunks before regenerating.
+    // concepts (and their still-draft study items) tied to this source's
+    // chunks before regenerating.
     const chunkIds = chunks.map((c: ChunkRow) => c.id);
     const { data: staleLinks } = await supabase
       .from('concept_sources')
@@ -138,6 +167,14 @@ Deno.serve(async (req: Request) => {
       .in('chunk_id', chunkIds);
     const staleConceptIds = [...new Set((staleLinks ?? []).map((l: { concept_id: string }) => l.concept_id))];
     if (staleConceptIds.length > 0) {
+      const { data: staleItemLinks } = await supabase
+        .from('item_concepts')
+        .select('item_id')
+        .in('concept_id', staleConceptIds);
+      const staleItemIds = [...new Set((staleItemLinks ?? []).map((l: { item_id: string }) => l.item_id))];
+      if (staleItemIds.length > 0) {
+        await supabase.from('study_items').delete().in('id', staleItemIds).eq('status', 'draft');
+      }
       await supabase.from('concepts').delete().in('id', staleConceptIds).eq('state', 'new');
     }
 
@@ -150,7 +187,7 @@ Deno.serve(async (req: Request) => {
       .from('concepts')
       .insert(
         draftConcepts.map(({ draft }) => ({
-          goal_id: body.goal_id,
+          goal_id: goalId,
           name: draft.name,
           explanation: draft.explanation,
           state: 'new',
@@ -171,7 +208,7 @@ Deno.serve(async (req: Request) => {
       .from('study_items')
       .insert(
         draftConcepts.map(({ draft }) => ({
-          goal_id: body.goal_id,
+          goal_id: goalId,
           prompt: draft.item.prompt,
           answer: draft.item.answer,
           item_type: draft.item.item_type,
@@ -195,10 +232,7 @@ Deno.serve(async (req: Request) => {
       .update({ status: 'succeeded', completed_at: new Date().toISOString() })
       .eq('id', job.id);
 
-    return new Response(
-      JSON.stringify({ job_id: job.id, concepts: insertedConcepts, items: insertedItems }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ job_id: job.id, concepts: insertedConcepts, items: insertedItems }, 200);
   } catch (err) {
     await supabase
       .from('ai_jobs')
@@ -209,9 +243,6 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', job.id);
 
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : 'unknown_error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: err instanceof Error ? err.message : 'unknown_error' }, 500);
   }
 });
