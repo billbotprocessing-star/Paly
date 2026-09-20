@@ -52,11 +52,19 @@ npm run web    # or: npm run ios / npm run android
 
 See `app/README.md` and `supabase/README.md` for details.
 
+## Live web build
+
+Vercel or Netlify, serving `app/` at a root domain — see "Deploying the
+web build" in `app/README.md`. (Not GitHub Pages: that serves this repo
+at a `/Paly/` subpath, which the Expo web exporter's root-absolute asset
+paths don't support.)
+
 ## Original static prototype
 
-`index.html` (open directly, or `python3 -m http.server 5173` from this
-directory) is the first-pass visual mock this build grew out of. It's no
-longer wired to anything — `app/` is the real, working client.
+`index.html` at the repo root (open directly, or `python3 -m http.server
+5173` from this directory) is the first-pass visual mock this build grew
+out of — still live at the repo's GitHub Pages link if enabled, but no
+longer wired to anything. `app/` is the real, working client.
 
 ---
 

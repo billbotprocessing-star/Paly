@@ -37,6 +37,29 @@ EXPO_PUBLIC_SUPABASE_URL=...
 EXPO_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
+## Deploying the web build
+
+The Expo web export works as a static SPA. It needs to be served from a
+**root domain**, not a subpath (GitHub Pages project sites like
+`user.github.io/repo/` don't work — the exporter hardcodes root-absolute
+asset paths and there's no supported base-path flag in this Expo/CLI
+version). Vercel and Netlify both serve at a root domain and are
+pre-configured here (`vercel.json`, `netlify.toml`):
+
+1. Push this repo to GitHub (already done).
+2. On [vercel.com](https://vercel.com) or [netlify.com](https://netlify.com),
+   import the repo, and set **Root Directory** to `app`.
+3. Leave build command / output directory as detected (`npm run build:web`
+   → `dist`, from the config files) — no other setup needed. `.env` is
+   already committed with the Supabase anon/publishable key, which is safe
+   to expose (RLS is the real security boundary), so no env vars need to be
+   added in the dashboard.
+4. Deploy. You'll get a `*.vercel.app` or `*.netlify.app` URL serving the
+   real, working app — auth, goal setup, capture, generate, publish.
+
+Local production build check: `npm run build:web`, then serve `dist/`
+with any static server.
+
 ## Next
 
 - Milestone 2: active recall UI, memory-state scheduler, adaptive daily queue.
