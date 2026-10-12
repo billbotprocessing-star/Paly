@@ -15,6 +15,7 @@ export default function HomeScreen() {
   const [goals, setGoals] = useState<LearningGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<TodaySummary | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const router = useRouter();
 
   const load = useCallback(() => {
@@ -24,7 +25,11 @@ export default function HomeScreen() {
       .then(setSummary)
       .catch(() => setSummary(null));
     listGoals()
-      .then(setGoals)
+      .then((g) => {
+        setGoals(g);
+        setLoadError(null);
+      })
+      .catch(() => setLoadError("Couldn't load your goals. Pull down to try again."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -87,7 +92,9 @@ export default function HomeScreen() {
           loading ? (
             <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.lavenderDeep} />
           ) : (
-            <Text style={styles.empty}>No goals yet. Start one above to capture your first source.</Text>
+            <Text style={styles.empty}>
+              {loadError ?? 'No goals yet. Start one above to capture your first source.'}
+            </Text>
           )
         }
         renderItem={({ item }) => (
