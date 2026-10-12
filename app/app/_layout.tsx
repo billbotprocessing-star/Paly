@@ -15,6 +15,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="new-goal" options={{ presentation: 'modal', title: 'New goal' }} />
           <Stack.Screen name="goal/[id]" options={{ title: 'Goal', headerBackTitle: 'Home' }} />
+          <Stack.Screen name="session" options={{ presentation: 'fullScreenModal', headerShown: false }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>

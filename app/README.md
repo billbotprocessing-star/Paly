@@ -1,26 +1,35 @@
 # Paly — app
 
 Expo (React Native) client for the Paly MVP (see `../docs/paly-mvp-spec.pdf`):
-capture → generate a study set → (recall, tutor, planning — upcoming milestones).
+capture → generate a study set → recall on a spaced schedule → (tutor,
+planning — upcoming milestones).
 
-Currently implements **Milestone 0 (Foundation)** and **Milestone 1
-(Capture, text-only)**: auth, goal setup (Exam/Explore), pasting text as a
-source, and AI-generated draft concepts/study items you review and publish.
+Implements **Milestone 0 (Foundation)**, **Milestone 1 (Capture,
+text-only)** and **Milestone 2 (Recall)**: auth, goal setup, pasting text as
+a source, Claude-generated draft cards you review and publish, study
+sessions, the FSRS scheduler and the adaptive daily queue.
 
 ## Structure
 
 - `app/sign-in.tsx` — email/password auth (Supabase)
-- `app/(tabs)/index.tsx` — Home: your goals, + New goal
-- `app/(tabs)/study.tsx` — Study: published items across goals
+- `app/(tabs)/index.tsx` — Home: "what to study now" card, your goals, + New goal
+- `app/(tabs)/study.tsx` — Study: today's queue (due + new), session length
+  picker, per-goal breakdown
+- `app/session.tsx` — a study session: recall before reveal, rate
+  Again/Hard/Good/Easy, missed cards return in the same sitting, recap
 - `app/(tabs)/buddy.tsx` — Buddy: about Paly (tutor lands in Milestone 3)
 - `app/new-goal.tsx` — goal setup: Exam or Explore, title, subject, cadence
-- `app/goal/[id].tsx` — capture (paste text) → generate → review/edit/publish
+- `app/goal/[id].tsx` — capture (paste text) → generate → review/edit/
+  discard/publish (or publish all); AI credits left; retry generation
 - `lib/theme.ts` — design tokens ported from `../index.html`
 - `lib/types.ts` — mirrors the Supabase schema (see `../supabase/`)
 - `lib/supabase.ts` — Supabase client (AsyncStorage-backed session)
 - `lib/auth-context.tsx` — session state, sign in/up/out
 - `lib/goals-api.ts` — goal/source/concept/study-item queries + text chunking
-  + calls the `generate-set` edge function
+  + calls the `generate-set` edge function + AI usage (`get_my_usage`)
+- `lib/scheduler.ts` — FSRS-4.5 memory model and the daily queue builder
+  (pure functions, tested in `scheduler.test.ts`)
+- `lib/study-api.ts` — sessions, queue loading, `record_review` RPC
 
 ## Run it
 
@@ -29,8 +38,9 @@ npm install
 npm run web    # or: npm run ios / npm run android
 ```
 
-Needs `.env` (already committed — Supabase anon/publishable keys are safe
-to expose; RLS is the actual security boundary):
+Copy `.env.example` to `.env` and fill in your project values (the
+Supabase anon/publishable key is safe to ship in the app; RLS is the actual
+security boundary):
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=...
@@ -50,19 +60,25 @@ pre-configured here (`vercel.json`, `netlify.toml`):
 2. On [vercel.com](https://vercel.com) or [netlify.com](https://netlify.com),
    import the repo, and set **Root Directory** to `app`.
 3. Leave build command / output directory as detected (`npm run build:web`
-   → `dist`, from the config files) — no other setup needed. `.env` is
-   already committed with the Supabase anon/publishable key, which is safe
-   to expose (RLS is the real security boundary), so no env vars need to be
-   added in the dashboard.
+   → `dist`, from the config files). Add `EXPO_PUBLIC_SUPABASE_URL` and
+   `EXPO_PUBLIC_SUPABASE_ANON_KEY` as environment variables in the
+   dashboard (`.env` is not committed).
 4. Deploy. You'll get a `*.vercel.app` or `*.netlify.app` URL serving the
-   real, working app — auth, goal setup, capture, generate, publish.
+   real, working app — auth, goal setup, capture, generate, publish, study.
 
 Local production build check: `npm run build:web`, then serve `dist/`
 with any static server.
 
+## Tests
+
+```bash
+npm test        # scheduler + daily queue (Node's built-in runner)
+npm run typecheck
+```
+
 ## Next
 
-- Milestone 2: active recall UI, memory-state scheduler, adaptive daily queue.
-- Milestone 3: swap the placeholder generator in `generate-set` for a real
-  n8n webhook; add the grounded Socratic tutor.
+- Milestone 3: the grounded Socratic tutor.
+- Milestone 4: exam readiness / momentum, notifications, missed-day recovery.
 - Photo/PDF capture (currently text-only per the spec's "first build decision").
+- Payments: connect App Store / Play subscriptions to `user_plans`.

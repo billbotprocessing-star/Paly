@@ -113,14 +113,68 @@ export async function captureTextSource(goalId: string, title: string, rawText: 
   return ingested;
 }
 
+export interface AiUsage {
+  plan: 'free' | 'pro';
+  used_month: number;
+  monthly_limit: number;
+  used_today: number;
+  daily_limit: number;
+  max_source_chars: number;
+  resets_at?: string;
+}
+
+/** Thrown when the learner has used up their AI generations for now. */
+export class UsageLimitError extends Error {
+  constructor(
+    public reason: 'monthly' | 'daily',
+    public usage: AiUsage
+  ) {
+    super(
+      reason === 'daily'
+        ? `You've used today's ${usage.daily_limit} AI generations. Your source is saved — generate it tomorrow.`
+        : `You've used all ${usage.monthly_limit} AI generations on the ${usage.plan} plan this month. Your source is saved — generate it when your allowance resets.`
+    );
+    this.name = 'UsageLimitError';
+  }
+}
+
+export async function getMyUsage(): Promise<AiUsage> {
+  const { data, error } = await supabase.rpc('get_my_usage');
+  if (error) throw error;
+  return data as AiUsage;
+}
+
 export async function generateStudySet(sourceId: string) {
   // The edge function derives the destination goal from the source itself
   // rather than trusting a client-supplied goal_id.
   const { data, error } = await supabase.functions.invoke('generate-set', {
     body: { source_id: sourceId },
   });
+  if (error) {
+    // Non-2xx responses carry a JSON body explaining what happened.
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    if (body?.error === 'limit_reached') throw new UsageLimitError(body.reason, body.usage);
+    throw new Error(body?.error ? `Generation failed: ${body.error}` : error.message);
+  }
+  return data as {
+    job_id: string;
+    concepts: ConceptRow[];
+    items: StudyItemRow[];
+    truncated: boolean;
+    usage: AiUsage | null;
+  };
+}
+
+/** Latest GENERATE_SET job per source, so failed or limited sources can be retried. */
+export async function listGenerationJobs(sourceIds: string[]): Promise<Record<string, { status: string; error_code: string | null }>> {
+  if (sourceIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('ai_jobs')
+    .select('entity_id, status, error_code')
+    .eq('job_type', 'GENERATE_SET')
+    .in('entity_id', sourceIds);
   if (error) throw error;
-  return data as { job_id: string; concepts: ConceptRow[]; items: StudyItemRow[] };
+  return Object.fromEntries((data ?? []).map((j) => [j.entity_id as string, { status: j.status, error_code: j.error_code }]));
 }
 
 export async function listConcepts(goalId: string): Promise<ConceptRow[]> {
@@ -150,4 +204,14 @@ export async function updateStudyItem(
   const { data, error } = await supabase.from('study_items').update(patch).eq('id', itemId).select().single();
   if (error) throw error;
   return data;
+}
+
+/** Publish every draft item in a goal at once (after the learner has looked them over). */
+export async function publishAllDrafts(goalId: string): Promise<void> {
+  const { error } = await supabase
+    .from('study_items')
+    .update({ status: 'published' })
+    .eq('goal_id', goalId)
+    .eq('status', 'draft');
+  if (error) throw error;
 }

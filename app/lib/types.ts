@@ -51,3 +51,39 @@ export interface StudyItemRow {
   status: ItemStatus;
   created_at: string;
 }
+
+// Milestone 2 · Recall
+export type ReviewRating = 'again' | 'hard' | 'good' | 'easy';
+
+export interface MemoryStateRow {
+  item_id: string;
+  user_id: string;
+  difficulty: number;
+  stability: number;
+  due_at: string;
+  last_review_at: string;
+  reps: number;
+  lapses: number;
+}
+
+export interface StudySessionRow {
+  id: string;
+  user_id: string;
+  goal_id: string | null;
+  mode: 'daily' | 'goal';
+  planned_minutes: number | null;
+  started_at: string;
+  ended_at: string | null;
+}
+
+export interface ReviewRow {
+  id: string;
+  session_id: string;
+  item_id: string;
+  user_id: string;
+  result: ReviewRating;
+  confidence: 1 | 2 | 3 | null;
+  response_ms: number | null;
+  answer_text: string | null;
+  reviewed_at: string;
+}

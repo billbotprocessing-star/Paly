@@ -34,13 +34,28 @@ shipped:
 - **Milestone 0 — Foundation**: Supabase auth, schema, RLS, private
   storage, the `ai_jobs` async-job contract.
 - **Milestone 1 — Capture (text-only)**: goal setup (Exam/Explore), paste
-  text as a source, AI-generated draft concepts + recall items (placeholder
-  heuristic today, swappable for a real n8n `GENERATE_SET` webhook later
-  without touching the app or schema), review/edit/publish.
+  text as a source, **Claude-generated** concepts + recall items (short
+  answer, cloze, explain-back), each linked to the passage it came from;
+  review/edit/discard/publish.
+- **Milestone 2 — Recall**: study sessions with recall-before-reveal,
+  Again/Hard/Good/Easy ratings with optional confidence, an FSRS
+  spaced-repetition scheduler, an adaptive daily queue (most-forgotten
+  first, exams within two weeks boosted, 10 new cards/day, sized to 2/5/10
+  minutes), immutable review history, and a session recap.
+- **AI usage limits**: Free and Pro plans with monthly/daily generation
+  allowances and a per-source size cap, enforced server-side.
 
-Not yet built: active recall + adaptive scheduling (Milestone 2), the
-grounded Socratic tutor (Milestone 3), exam-readiness/momentum planning and
-notifications (Milestone 4), photo/PDF capture, voice.
+Not yet built: the grounded Socratic tutor (Milestone 3), exam-readiness/
+momentum planning and notifications (Milestone 4), photo/PDF capture,
+voice, and payments (Pro is granted manually for now — see
+`supabase/README.md`).
+
+## Tests
+
+```bash
+cd app && npm test                      # scheduler + daily queue
+cd supabase/tests && npm i && npm test  # database security + usage limits
+```
 
 ## Run it
 
